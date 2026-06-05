@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  ecopi-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecopi-dashboard
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # Fuso horário
+      TZ: Europe/Lisbon
+      
+      # Configurações da aplicação
+      DEBUG: "False"
+      HOST: "0.0.0.0"
+      PORT: 8000
+      
+      # Configuração da base de dados
+      DB_PATH: /data/telemetry.db
+      
+      # IPs dos dispositivos Shelly
+      SHELLY_SOLAR_IP: "192.168.188.25"
+      SHELLY_HOUSE_IP: "192.168.188.5"
+    
+    volumes:
+      # Volume persistente para a base de dados SQLite
+      - ecopi_data:/data
+    
+    networks:
+      - ecopi_network
+
+volumes:
+  ecopi_data:
+    driver: local
+
+networks:
+  ecopi_network:
+    driver: bridge
