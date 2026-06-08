@@ -15,8 +15,8 @@ if __name__ == '__main__':
     app = create_app()
     
     host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', 8000))
-    debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 8001))
+    debug = True
     
     print(f"🚀 Iniciando EcoPi OS em http://{host}:{port}")
     app.run(host=host, port=port, debug=debug)

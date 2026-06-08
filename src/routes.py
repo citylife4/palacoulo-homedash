@@ -3,7 +3,7 @@ Routes Module - Definição de rotas usando Flask Blueprints
 """
 import sqlite3
 import logging
-from datetime import datetime
+import datetime
 from flask import Blueprint, render_template, request, jsonify
 from src.database import get_db_connection
 from src.shelly_service import fetch_shelly_solar, fetch_shelly_house
@@ -29,8 +29,8 @@ def handle_weather_webhook():
     Processa conversões métricas, busca dados dos Shelly e guarda na BD
     """
     form = request.form
-    current_time = datetime.now().strftime("%H:%M:%S")
-    timestamp_log = datetime.now().strftime("%H:%M:%S")
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp_log = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     print(f"[{timestamp_log}] -> Dados recebidos na rota /weather!")
     print("Payload bruto enviado pela estação:", dict(form))
@@ -56,8 +56,8 @@ def handle_weather_webhook():
         
         # Integração paralela com os Shelly locais
         ac_solar = fetch_shelly_solar()
-        house_power = fetch_shelly_house()
-        net_balance = round(ac_solar - house_power, 1)
+        net_balance = fetch_shelly_house()
+        house_power = round(net_balance + ac_solar, 1)
         
         # Gravação segura na DB
         conn = get_db_connection()
@@ -94,7 +94,7 @@ def get_live_data():
         # Buscar histórico (últimos 30 registos ordenados cronologicamente)
         cursor.execute("""
             SELECT * FROM (
-                SELECT * FROM telemetry ORDER BY id DESC LIMIT 30
+                SELECT * FROM telemetry ORDER BY id DESC LIMIT 200
             ) ORDER BY id ASC
         """)
         rows = cursor.fetchall()
@@ -138,6 +138,139 @@ def get_live_data():
         
     except Exception as e:
         error_msg = f"Erro ao buscar dados de telemetria: {str(e)}"
+        logger.error(error_msg)
+        return jsonify({"error": error_msg}), 500
+
+@main_bp.route('/api/statistics', methods=['GET'])
+def get_statistics():
+    """
+    Endpoint que retorna estatísticas diárias e mensais
+    Calcula:
+    - Energia gerada (produção solar)
+    - Energia consumida (consumo casa)
+    - Energia vendida/excedente (balanço positivo)
+    """
+    try:
+        period = request.args.get('period', 'daily')  # 'daily' ou 'monthly'
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if period == 'daily':
+            # Estatísticas diárias - grupo simples de 100 records = 1 "dia"
+            # Como os dados não têm data real, agrupamos por sequências de IDs
+            cursor.execute("""
+                SELECT 
+                    'Periodo ' || ((id - 1) / 100 + 1) as date,
+                    ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
+                    ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
+                    ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
+                    ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
+                    ROUND(AVG(house_power_w), 1) as avg_consumption_w
+                FROM (
+                    SELECT * FROM telemetry 
+                    WHERE id > (SELECT MAX(id) - 1000 FROM telemetry)
+                    ORDER BY id DESC
+                )
+                GROUP BY ((id - 1) / 100)
+                ORDER BY ((id - 1) / 100) DESC
+                LIMIT 30
+            """)
+            
+        else:  # monthly
+            # Estatísticas mensais - sem data real, usar agregação simples
+            # Retorna uma única agregação de todos os dados disponíveis
+            cursor.execute("""
+                SELECT 
+                    'Atual' as month,
+                    ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
+                    ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
+                    ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
+                    ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
+                    ROUND(AVG(house_power_w), 1) as avg_consumption_w
+                FROM telemetry
+            """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        stats = []
+        for row in rows:
+            stats.append({
+                "date" if period == 'daily' else "month": row[0],
+                "generated": row[1],
+                "consumed": row[2],
+                "sold": row[3],
+                "avg_solar": row[4],
+                "avg_consumption": row[5]
+            })
+        
+        return jsonify({
+            "period": period,
+            "data": stats
+        })
+        
+    except Exception as e:
+        error_msg = f"Erro ao buscar estatísticas: {str(e)}"
+        logger.error(error_msg)
+        return jsonify({"error": error_msg}), 500
+
+
+@main_bp.route('/api/summary', methods=['GET'])
+def get_summary():
+    """
+    Endpoint que retorna resumo total do dia/mês
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT timestamp FROM telemetry ORDER BY id DESC LIMIT 1")
+        print(cursor.fetchone()[0])
+        # Get today's start and end strings in the standard ISO format
+        hoje_inicio = datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')
+        hoje_fim = datetime.datetime.now().strftime('%Y-%m-%d 23:59:59')
+
+        cursor.execute("""
+            SELECT 
+                ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_today,
+                ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_today,
+                ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_today
+            FROM telemetry
+            WHERE timestamp >= ? AND timestamp <= ?
+        """, (hoje_inicio, hoje_fim))
+        day_row = cursor.fetchone()
+        
+        # Get the first day of this month and the first day of next month
+        mes_inicio = datetime.datetime.now().strftime('%Y-%m-01 00:00:00')
+        # Next month math
+        hoje = datetime.date.today()
+        proximo_mes = (hoje.replace(day=28) + datetime.timedelta(days=4)).replace(day=1).strftime('%Y-%m-%d 00:00:00')
+
+        cursor.execute("""
+            SELECT 
+                ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_month,
+                ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_month,
+                ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_month
+            FROM telemetry
+            WHERE timestamp >= ? AND timestamp < ?
+        """, (mes_inicio, proximo_mes))
+        month_row = cursor.fetchone()
+        conn.close()
+        
+        return jsonify({
+            "today": {
+                "generated": day_row[0] or 0,
+                "consumed": day_row[1] or 0,
+                "sold": day_row[2] or 0
+            },
+            "month": {
+                "generated": month_row[0] or 0,
+                "consumed": month_row[1] or 0,
+                "sold": month_row[2] or 0
+            }
+        })
+        
+    except Exception as e:
+        error_msg = f"Erro ao buscar resumo: {str(e)}"
         logger.error(error_msg)
         return jsonify({"error": error_msg}), 500
 
