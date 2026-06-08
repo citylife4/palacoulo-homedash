@@ -20,6 +20,12 @@ services:
       
       # Configuração da base de dados
       DB_PATH: /data/telemetry.db
+      # Use Oracle storage backend when available
+      STORAGE: oracle
+      ORACLE_DB_ENABLED: "true"
+      # Wallet and TNS_ADMIN inside container (wallet files are copied into image)
+      ORACLE_WALLET: /app/Wallet_D99ZZVBY7UIWHZWY
+      TNS_ADMIN: /app/Wallet_D99ZZVBY7UIWHZWY
       
       # IPs dos dispositivos Shelly
       SHELLY_SOLAR_IP: "192.168.188.25"
@@ -28,6 +34,8 @@ services:
     volumes:
       # Volume persistente para a base de dados SQLite
       - ecopi_data:/data
+      # Optionally keep app files (code + wallet) in the container (copied at build)
+      - ./:/app:ro
     
     networks:
       - ecopi_network

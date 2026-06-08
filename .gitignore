@@ -44,6 +44,7 @@ instance/
 .env
 .env.local
 .env.*.local
+oracle-config.json
 
 # Docker
 .dockerignore
@@ -59,3 +60,8 @@ Thumbs.db
 # Project specific
 telemetry.db-shm
 telemetry.db-wal
+
+#
+Wallet*zip
+wallet**/**
+Wallet**/**

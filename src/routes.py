@@ -1,17 +1,19 @@
 """
 Routes Module - Definição de rotas usando Flask Blueprints
 """
-import sqlite3
 import logging
 import datetime
 from flask import Blueprint, render_template, request, jsonify
-from src.database import get_db_connection
 from src.shelly_service import fetch_shelly_solar, fetch_shelly_house
+from src.storage import get_storage
 
 logger = logging.getLogger(__name__)
 
 # Cria blueprint para as rotas principais
 main_bp = Blueprint('main', __name__)
+
+# Selected storage backend (sqlite or oracle)
+storage = get_storage()
 
 
 @main_bp.route('/', methods=['GET'])
@@ -59,16 +61,25 @@ def handle_weather_webhook():
         net_balance = fetch_shelly_house()
         house_power = round(net_balance + ac_solar, 1)
         
-        # Gravação segura na DB
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO telemetry 
-            (timestamp, temperature, humidity, wind_speed, wind_dir, barometer, rain_rate, solar_rad, uv, ac_solar_w, house_power_w, net_balance)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (current_time, temp_c, humidity, wind_kmh, wind_dir, barom_hpa, rain_mm, solar_rad, uv, round(ac_solar, 1), round(house_power, 1), net_balance))
-        conn.commit()
-        conn.close()
+        # Persist using selected storage backend
+        record = {
+            'timestamp': current_time,
+            'temperature': temp_c,
+            'humidity': humidity,
+            'wind_speed': wind_kmh,
+            'wind_dir': wind_dir,
+            'barometer': barom_hpa,
+            'rain_rate': rain_mm,
+            'solar_rad': solar_rad,
+            'uv': uv,
+            'ac_solar_w': round(ac_solar, 1),
+            'house_power_w': round(house_power, 1),
+            'net_balance': net_balance
+        }
+
+        ok = storage.insert(record)
+        if not ok:
+            logger.warning('Failed to persist telemetry to storage backend')
         
         print("--> Sucesso: Dados convertidos e guardados na DB local!")
         logger.info(f"Dados de telemetria guardados com sucesso em {current_time}")
@@ -88,17 +99,8 @@ def get_live_data():
     Retorna o último registo e o histórico dos últimos 30 registos
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Buscar histórico (últimos 30 registos ordenados cronologicamente)
-        cursor.execute("""
-            SELECT * FROM (
-                SELECT * FROM telemetry ORDER BY id DESC LIMIT 200
-            ) ORDER BY id ASC
-        """)
-        rows = cursor.fetchall()
-        conn.close()
+        # Fetch history from storage backend
+        rows = storage.fetch_rows(limit=200)
         
         if not rows:
             return jsonify({
@@ -152,46 +154,12 @@ def get_statistics():
     """
     try:
         period = request.args.get('period', 'daily')  # 'daily' ou 'monthly'
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         if period == 'daily':
             # Estatísticas diárias - grupo simples de 100 records = 1 "dia"
             # Como os dados não têm data real, agrupamos por sequências de IDs
-            cursor.execute("""
-                SELECT 
-                    'Periodo ' || ((id - 1) / 100 + 1) as date,
-                    ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
-                    ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
-                    ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
-                    ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
-                    ROUND(AVG(house_power_w), 1) as avg_consumption_w
-                FROM (
-                    SELECT * FROM telemetry 
-                    WHERE id > (SELECT MAX(id) - 1000 FROM telemetry)
-                    ORDER BY id DESC
-                )
-                GROUP BY ((id - 1) / 100)
-                ORDER BY ((id - 1) / 100) DESC
-                LIMIT 30
-            """)
-            
-        else:  # monthly
-            # Estatísticas mensais - sem data real, usar agregação simples
-            # Retorna uma única agregação de todos os dados disponíveis
-            cursor.execute("""
-                SELECT 
-                    'Atual' as month,
-                    ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
-                    ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
-                    ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
-                    ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
-                    ROUND(AVG(house_power_w), 1) as avg_consumption_w
-                FROM telemetry
-            """)
-        
-        rows = cursor.fetchall()
-        conn.close()
+            rows = storage.fetch_statistics_daily()
+        else:
+            rows = storage.fetch_statistics_monthly()
         
         stats = []
         for row in rows:
@@ -221,53 +189,8 @@ def get_summary():
     Endpoint que retorna resumo total do dia/mês
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT timestamp FROM telemetry ORDER BY id DESC LIMIT 1")
-        print(cursor.fetchone()[0])
-        # Get today's start and end strings in the standard ISO format
-        hoje_inicio = datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')
-        hoje_fim = datetime.datetime.now().strftime('%Y-%m-%d 23:59:59')
-
-        cursor.execute("""
-            SELECT 
-                ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_today,
-                ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_today,
-                ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_today
-            FROM telemetry
-            WHERE timestamp >= ? AND timestamp <= ?
-        """, (hoje_inicio, hoje_fim))
-        day_row = cursor.fetchone()
-        
-        # Get the first day of this month and the first day of next month
-        mes_inicio = datetime.datetime.now().strftime('%Y-%m-01 00:00:00')
-        # Next month math
-        hoje = datetime.date.today()
-        proximo_mes = (hoje.replace(day=28) + datetime.timedelta(days=4)).replace(day=1).strftime('%Y-%m-%d 00:00:00')
-
-        cursor.execute("""
-            SELECT 
-                ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_month,
-                ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_month,
-                ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_month
-            FROM telemetry
-            WHERE timestamp >= ? AND timestamp < ?
-        """, (mes_inicio, proximo_mes))
-        month_row = cursor.fetchone()
-        conn.close()
-        
-        return jsonify({
-            "today": {
-                "generated": day_row[0] or 0,
-                "consumed": day_row[1] or 0,
-                "sold": day_row[2] or 0
-            },
-            "month": {
-                "generated": month_row[0] or 0,
-                "consumed": month_row[1] or 0,
-                "sold": month_row[2] or 0
-            }
-        })
+        summary = storage.fetch_summary()
+        return jsonify(summary)
         
     except Exception as e:
         error_msg = f"Erro ao buscar resumo: {str(e)}"
