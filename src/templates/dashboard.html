@@ -1,234 +1,788 @@
 <!DOCTYPE html>
-<html lang="pt-PT" class="h-full bg-[#070a13]">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Core Dashboard - Automação Residencial</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Dashboard - Monitorização Energética</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .glass-card {
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .glow-green { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
-        .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
-        .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
+        
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .tab-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .metric-card.generated {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .metric-card.consumed {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .metric-card.sold {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .metric-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .metric-card .value {
+            font-size: 2.2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .metric-card .unit {
+            font-size: 0.85em;
+            opacity: 0.85;
+        }
+        
+        .realtime-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .metric.solar {
+            border-left-color: #f5576c;
+        }
+        
+        .metric.consumption {
+            border-left-color: #00f2fe;
+        }
+        
+        .metric.balance {
+            border-left-color: #43e97b;
+        }
+        
+        .metric-name {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .metric-unit {
+            font-size: 0.8em;
+            color: #999;
+            margin-left: 5px;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 400px;
+        }
+        
+        .chart-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .table-date {
+            font-weight: 500;
+            color: #667eea;
+        }
+        
+        .table-value {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        
+        .status-online {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-offline {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+        
+        .filter-period {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-button {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-button:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .filter-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .weather-info {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .weather-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .weather-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .weather-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
-<body class="text-slate-100 min-h-full flex flex-col justify-between">
-
-    <header class="glass-card sticky top-0 z-50 border-b border-slate-800/60 px-6 py-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                <h1 class="text-xl font-bold tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
-                    EcoPi OS <span class="text-xs font-light text-slate-400 font-mono">v2.7 DB</span>
-                </h1>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Dashboard Energético</h1>
+            <p>Monitorização em Tempo Real e Histórico de Consumo Solar</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('dashboard')">
+                📊 Dashboard
+            </button>
+            <button class="tab-button" onclick="switchTab('historical')">
+                📈 Histórico
+            </button>
+        </div>
+        
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard" class="tab-content active">
+            <div class="weather-info">
+                <div class="card-title">☀️ Dados Meteorológicos</div>
+                <div class="weather-grid">
+                    <div class="weather-item">
+                        <div class="weather-label">Temperatura</div>
+                        <div class="weather-value" id="weather-temp">--</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-label">Humidade</div>
+                        <div class="weather-value" id="weather-humidity">--%</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-label">Precipitação</div>
+                        <div class="weather-value" id="weather-rain">--</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-label">Vento</div>
+                        <div class="weather-value" id="weather-wind">--</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-label">Pressão</div>
+                        <div class="weather-value" id="weather-pressure">--</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-label">Última atualização</div>
+                        <div class="weather-value" id="weather-time" style="font-size: 1em;">--</div>
+                    </div>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-xs text-slate-400 uppercase tracking-widest">Último Sinal DB</p>
-                <p id="live-clock" class="text-sm font-semibold font-mono text-cyan-400">A escutar em /weather...</p>
+            
+            <div class="summary-cards">
+                <div class="metric-card generated">
+                    <div class="label">Energia Gerada (Hoje)</div>
+                    <div class="value" id="today-generated">0</div>
+                    <div class="unit">kWh</div>
+                </div>
+                <div class="metric-card consumed">
+                    <div class="label">Energia Consumida (Hoje)</div>
+                    <div class="value" id="today-consumed">0</div>
+                    <div class="unit">kWh</div>
+                </div>
+                <div class="metric-card sold">
+                    <div class="label">Energia Vendida/Excesso (Hoje)</div>
+                    <div class="value" id="today-sold">0</div>
+                    <div class="unit">kWh</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">⚡ Dados em Tempo Real</div>
+                <div class="realtime-metrics">
+                    <div class="metric solar">
+                        <div class="metric-name">Produção Solar</div>
+                        <div class="metric-value">
+                            <span id="solar-power">0</span>
+                            <span class="metric-unit" id="solar-unit">W</span>
+                        </div>
+                    </div>
+                    <div class="metric consumption">
+                        <div class="metric-name">Consumo da Casa</div>
+                        <div class="metric-value">
+                            <span id="house-power">0</span>
+                            <span class="metric-unit" id="house-unit">W</span>
+                        </div>
+                    </div>
+                    <div class="metric balance">
+                        <div class="metric-name">Balanço Líquido</div>
+                        <div class="metric-value">
+                            <span id="net-balance">0</span>
+                            <span class="metric-unit" id="balance-unit">W</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Últimas 24 Horas - Produção vs Consumo</div>
+                    <canvas id="chart24h"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">⚖️ Últimas 24 Horas - Balanço Energético</div>
+                    <canvas id="chartBalance"></canvas>
+                </div>
             </div>
         </div>
-    </header>
-
-    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 flex-grow space-y-8">
         
-        <section>
-            <h2 class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                <span>⚡</span> Matriz Energética Residencial
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="glass-card rounded-2xl p-6 glow-green relative overflow-hidden">
-                    <div class="absolute top-0 left-0 h-1 w-full bg-emerald-500"></div>
-                    <p class="text-sm font-medium text-slate-400 uppercase">Produção Solar AC</p>
-                    <div class="mt-4 flex items-baseline justify-between">
-                        <span id="txt-solar" class="text-4xl font-extrabold text-emerald-400 font-mono">0.0</span>
-                        <span id="unit-solar" class="text-lg font-medium text-emerald-500/80">W</span>
-                    </div>
-                </div>
-
-                <div class="glass-card rounded-2xl p-6 glow-red relative overflow-hidden">
-                    <div class="absolute top-0 left-0 h-1 w-full bg-rose-500"></div>
-                    <p class="text-sm font-medium text-slate-400 uppercase">Consumo Geral</p>
-                    <div class="mt-4 flex items-baseline justify-between">
-                        <span id="txt-house" class="text-4xl font-extrabold text-rose-400 font-mono">0.0</span>
-                        <span id="unit-house" class="text-lg font-medium text-rose-500/80">W</span>
-                    </div>
-                </div>
-
-                <div id="card-balance" class="glass-card rounded-2xl p-6 relative overflow-hidden">
-                    <div id="border-balance" class="absolute top-0 left-0 h-1 w-full bg-slate-500"></div>
-                    <p class="text-sm font-medium text-slate-400 uppercase">Balanço Líquido</p>
-                    <div class="mt-4 flex items-baseline justify-between">
-                        <span id="txt-balance" class="text-4xl font-extrabold font-mono text-slate-300">0.0</span>
-                        <span id="unit-balance" class="text-lg font-medium text-slate-400">W</span>
-                    </div>
-                    <p id="txt-status-label" class="text-xs text-slate-500 mt-2">A processar...</p>
+        <!-- HISTORICAL TAB -->
+        <div id="historical" class="tab-content">
+            <div class="card">
+                <div class="card-title">📅 Estatísticas Diárias (Últimos 30 dias)</div>
+                <div class="table-responsive">
+                    <table id="daily-stats-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th class="table-value">Gerada (kWh)</th>
+                                <th class="table-value">Consumida (kWh)</th>
+                                <th class="table-value">Vendida/Excesso (kWh)</th>
+                                <th class="table-value">Solar Médio (W)</th>
+                                <th class="table-value">Consumo Médio (W)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-stats-body">
+                            <tr>
+                                <td colspan="6" class="no-data">Carregando dados...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
-
-        <section>
-            <h2 class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                <span>🌤️</span> Condições Atmosféricas
-            </h2>
-            <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Temperatura</span>
-                    <span class="text-2xl font-bold font-mono text-amber-400 mt-2"><span id="meta-temp">0.0</span><span class="text-sm font-sans text-slate-400 ml-1">°C</span></span>
-                </div>
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Humidade</span>
-                    <span class="text-2xl font-bold font-mono text-blue-400 mt-2"><span id="meta-hum">0</span><span class="text-sm font-sans text-slate-400 ml-1">%</span></span>
-                </div>
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Vento</span>
-                    <span class="text-xl font-bold font-mono text-teal-400 mt-2 truncate"><span id="meta-wind">0.0</span><span class="text-xs font-sans text-slate-400 ml-1">km/h</span></span>
-                    <span id="meta-winddir" class="text-[10px] text-slate-500 font-mono mt-1">Dir: 0°</span>
-                </div>
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Pressão</span>
-                    <span class="text-xl font-bold font-mono text-purple-400 mt-2"><span id="meta-barom">0.0</span><span class="text-xs font-sans text-slate-400 ml-1">hPa</span></span>
-                </div>
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Chuva</span>
-                    <span class="text-2xl font-bold font-mono text-cyan-400 mt-2"><span id="meta-rain">0.0</span><span class="text-sm font-sans text-slate-400 ml-1">mm/h</span></span>
-                </div>
-                <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
-                    <span class="text-xs text-slate-400 font-medium uppercase">Radiação / UV</span>
-                    <span class="text-xl font-bold font-mono text-yellow-400 mt-2"><span id="meta-rad">0</span><span class="text-xs font-sans text-slate-400 ml-1">W/m²</span></span>
-                    <span id="meta-uv" class="text-[10px] text-amber-500 font-semibold uppercase mt-1">UV: 0</span>
+            
+            <div class="card">
+                <div class="card-title">📆 Estatísticas Mensais (Últimos 12 meses)</div>
+                <div class="table-responsive">
+                    <table id="monthly-stats-table">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th class="table-value">Gerada (kWh)</th>
+                                <th class="table-value">Consumida (kWh)</th>
+                                <th class="table-value">Vendida/Excesso (kWh)</th>
+                                <th class="table-value">Solar Médio (W)</th>
+                                <th class="table-value">Consumo Médio (W)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthly-stats-body">
+                            <tr>
+                                <td colspan="6" class="no-data">Carregando dados...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
-
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="glass-card rounded-2xl p-5 glow-blue">
-                <p class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4">Histórico Térmico</p>
-                <div class="h-64"><canvas id="chart-temp"></canvas></div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Geração Diária vs Mensal</div>
+                    <canvas id="chartDailyVsMonthly"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">📊 Consumo Diário vs Mensal</div>
+                    <canvas id="chartConsumptionVsMonthly"></canvas>
+                </div>
             </div>
-            <div class="glass-card rounded-2xl p-5">
-                <p class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4">Fluxo de Energia Integrado</p>
-                <div class="h-64"><canvas id="chart-energy"></canvas></div>
-            </div>
-        </section>
-    </main>
-
+        </div>
+    </div>
+    
     <script>
-        let chartTemp, chartEnergy;
-
-        function initCharts() {
-            const ctxTemp = document.getElementById('chart-temp').getContext('2d');
-            chartTemp = new Chart(ctxTemp, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'Temp (°C)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.05)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 1 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } } } }
+        let chart24h = null;
+        let chartBalance = null;
+        let chartDailyVsMonthly = null;
+        let chartConsumptionVsMonthly = null;
+        
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
             });
-
-            const ctxEnergy = document.getElementById('chart-energy').getContext('2d');
-            chartEnergy = new Chart(ctxEnergy, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: 'Radiação (W/m²)', data: [], borderColor: '#eab308', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
-                        { label: 'Produção Solar (W)', data: [], borderColor: '#10b981', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
-                        { label: 'Consumo Casa (W)', data: [], borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } } } }
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
             });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for historical tab when switched
+            if (tabName === 'historical') {
+                loadStatistics();
+            }
         }
-
-        function formatPowerValue(value) {
-            const absValue = Math.abs(value);
+        
+        function formatPower(watts) {
+            const absValue = Math.abs(watts);
             if (absValue >= 1000) {
-                return { value: (value / 1000).toFixed(2), unit: 'kW' };
+                return (watts / 1000).toFixed(2);
             }
-            return { value: value.toFixed(1), unit: 'W' };
+            return Math.round(watts).toString();
         }
-
-        async function updateDashboard() {
-            try {
-                const response = await fetch('/api/live');
-                if (!response.ok) return;
-                const data = await response.json();
-                
-                if (data.error) return;
-
-                const latest = data.latest;
-                const history = data.history;
-
-                document.getElementById('live-clock').innerText = latest.timestamp;
-                
-                // Atualiza valores de potência com formatação inteligente
-                const solarFormatted = formatPowerValue(latest.ac_solar_w);
-                const houseFormatted = formatPowerValue(latest.house_power_w);
-                const balanceFormatted = formatPowerValue(latest.net_balance);
-                
-                document.getElementById('txt-solar').innerText = solarFormatted.value;
-                document.getElementById('unit-solar').innerText = solarFormatted.unit;
-                
-                document.getElementById('txt-house').innerText = houseFormatted.value;
-                document.getElementById('unit-house').innerText = houseFormatted.unit;
-                
-                const balanceElement = document.getElementById('txt-balance');
-                const cardBalance = document.getElementById('card-balance');
-                const borderBalance = document.getElementById('border-balance');
-                const statusLabel = document.getElementById('txt-status-label');
-                const unitBalance = document.getElementById('unit-balance');
-
-                balanceElement.innerText = balanceFormatted.value;
-                unitBalance.innerText = balanceFormatted.unit;
-
-                if (latest.net_balance >= 0) {
-                    balanceElement.className = "text-4xl font-extrabold font-mono text-emerald-400";
-                    cardBalance.className = "glass-card rounded-2xl p-6 glow-green relative overflow-hidden";
-                    borderBalance.className = "absolute top-0 left-0 h-1 w-full bg-emerald-500";
-                    statusLabel.innerText = "Excedente / Autossuficiência";
-                } else {
-                    balanceElement.className = "text-4xl font-extrabold font-mono text-orange-400";
-                    cardBalance.className = "glass-card rounded-2xl p-6 glow-red relative overflow-hidden";
-                    borderBalance.className = "absolute top-0 left-0 h-1 w-full bg-orange-500";
-                    statusLabel.innerText = "A Importar da Rede Comercial";
-                }
-
-                document.getElementById('meta-temp').innerText = latest.temperature.toFixed(1);
-                document.getElementById('meta-hum').innerText = latest.humidity;
-                document.getElementById('meta-wind').innerText = latest.wind_speed.toFixed(1);
-                document.getElementById('meta-winddir').innerText = `Dir: ${latest.wind_dir}°`;
-                document.getElementById('meta-barom').innerText = latest.barometer.toFixed(1);
-                document.getElementById('meta-rain').innerText = latest.rain_rate.toFixed(1);
-                document.getElementById('meta-rad').innerText = latest.solar_rad;
-                document.getElementById('meta-uv').innerText = `UV: ${latest.uv}`;
-
-                if(history.timestamps && history.timestamps.length > 0) {
-                    chartTemp.data.labels = history.timestamps;
-                    chartTemp.data.datasets[0].data = history.temperature;
-                    chartTemp.update('none');
-
-                    chartEnergy.data.labels = history.timestamps;
-                    chartEnergy.data.datasets[0].data = history.solar_rad;
-                    chartEnergy.data.datasets[1].data = history.ac_solar_w;
-                    chartEnergy.data.datasets[2].data = history.house_power_w;
-                    chartEnergy.update('none');
-                }
-
-            } catch (error) {
-                console.error("Erro no Polling:", error);
+        
+        function getPowerUnit(watts) {
+            const absValue = Math.abs(watts);
+            return absValue >= 1000 ? 'kW' : 'W';
+        }
+        
+        function updateLiveData() {
+            fetch('/api/live')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.latest) {
+                        const current = data.latest;
+                        
+                        // Update real-time metrics
+                        const solarPower = parseFloat(current.ac_solar_w) || 0;
+                        const housePower = parseFloat(current.house_power_w) || 0;
+                        const netBalance = parseFloat(current.net_balance) || 0;
+                        
+                        document.getElementById('solar-power').textContent = formatPower(solarPower);
+                        document.getElementById('solar-unit').textContent = getPowerUnit(solarPower);
+                        
+                        document.getElementById('house-power').textContent = formatPower(housePower);
+                        document.getElementById('house-unit').textContent = getPowerUnit(housePower);
+                        
+                        document.getElementById('net-balance').textContent = formatPower(netBalance);
+                        document.getElementById('balance-unit').textContent = getPowerUnit(netBalance);
+                        
+                        // Update weather info
+                        if (current.temperature) {
+                            document.getElementById('weather-temp').textContent = 
+                                parseFloat(current.temperature).toFixed(1) + '°C';
+                        }
+                        if (current.humidity) {
+                            document.getElementById('weather-humidity').textContent = 
+                                parseFloat(current.humidity).toFixed(0) + '%';
+                        }
+                        if (current.rain_rate) {
+                            document.getElementById('weather-rain').textContent = 
+                                parseFloat(current.rain_rate).toFixed(1) + 'mm';
+                        }
+                        if (current.wind_speed) {
+                            document.getElementById('weather-wind').textContent = 
+                                parseFloat(current.wind_speed).toFixed(1) + 'km/h';
+                        }
+                        if (current.barometer) {
+                            document.getElementById('weather-pressure').textContent = 
+                                parseFloat(current.barometer).toFixed(0) + 'hPa';
+                        }
+                        if (current.timestamp) {
+                            document.getElementById('weather-time').textContent = current.timestamp;
+                        }
+                    }
+                    
+                    // Update today's summary
+                    updateTodaySummary();
+                    
+                    // Update 24h chart with history data
+                    if (data.history) {
+                        updateChart24h(data.history);
+                    }
+                })
+                .catch(err => console.error('Erro ao buscar dados ao vivo:', err));
+        }
+        
+        function updateTodaySummary() {
+            fetch('/api/summary')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.today) {
+                        // API returns values already in kWh
+                        document.getElementById('today-generated').textContent = 
+                            parseFloat(data.today.generated).toFixed(2);
+                        document.getElementById('today-consumed').textContent = 
+                            parseFloat(data.today.consumed).toFixed(2);
+                        document.getElementById('today-sold').textContent = 
+                            parseFloat(data.today.sold).toFixed(2);
+                    }
+                })
+                .catch(err => console.error('Erro ao buscar resumo:', err));
+        }
+        
+        function updateChart24h(history) {
+            const ctx = document.getElementById('chart24h');
+            if (!ctx) return;
+            
+            // History is an object with arrays, not array of objects
+            const labels = history.timestamps || [];
+            const solarData = (history.ac_solar_w || []).map(w => w / 1000 || 0);
+            const consumptionData = (history.house_power_w || []).map(w => w / 1000 || 0);
+            
+            if (chart24h) {
+                chart24h.data.labels = labels;
+                chart24h.data.datasets[0].data = solarData;
+                chart24h.data.datasets[1].data = consumptionData;
+                chart24h.update();
+            } else {
+                chart24h = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Produção Solar (kW)',
+                                data: solarData,
+                                borderColor: '#f5576c',
+                                backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Consumo da Casa (kW)',
+                                data: consumptionData,
+                                borderColor: '#00f2fe',
+                                backgroundColor: 'rgba(0, 242, 254, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Potência (kW)'
+                                }
+                            }
+                        }
+                    }
+                });
             }
         }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            initCharts();
-            updateDashboard();
-            setInterval(updateDashboard, 3000);
-        });
+        
+        function loadStatistics() {
+            // Load daily statistics
+            fetch('/api/statistics?period=daily')
+                .then(response => response.json())
+                .then(data => {
+                    populateDailyTable(data.data || []);
+                })
+                .catch(err => {
+                    console.error('Erro ao buscar estatísticas diárias:', err);
+                    document.getElementById('daily-stats-body').innerHTML = 
+                        '<tr><td colspan="6" class="error">Erro ao carregar dados</td></tr>';
+                });
+            
+            // Load monthly statistics
+            fetch('/api/statistics?period=monthly')
+                .then(response => response.json())
+                .then(data => {
+                    populateMonthlyTable(data.data || []);
+                })
+                .catch(err => {
+                    console.error('Erro ao buscar estatísticas mensais:', err);
+                    document.getElementById('monthly-stats-body').innerHTML = 
+                        '<tr><td colspan="6" class="error">Erro ao carregar dados</td></tr>';
+                });
+        }
+        
+        function populateDailyTable(stats) {
+            const tbody = document.getElementById('daily-stats-body');
+            if (stats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">Nenhum dado disponível</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = stats.map(stat => `
+                <tr>
+                    <td class="table-date">${stat.date}</td>
+                    <td class="table-value">${parseFloat(stat.generated).toFixed(2)}</td>
+                    <td class="table-value">${parseFloat(stat.consumed).toFixed(2)}</td>
+                    <td class="table-value">${parseFloat(stat.sold).toFixed(2)}</td>
+                    <td class="table-value">${Math.round(stat.avg_solar)}</td>
+                    <td class="table-value">${Math.round(stat.avg_consumption)}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function populateMonthlyTable(stats) {
+            const tbody = document.getElementById('monthly-stats-body');
+            if (stats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">Nenhum dado disponível</td></tr>';
+                return;
+            }
+            
+            const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                             'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            tbody.innerHTML = stats.map(stat => {
+                // Handle both format: 'YYYY-MM' and 'Período X' or 'Atual'
+                let displayName = stat.month;
+                if (stat.month && stat.month.includes('-')) {
+                    const parts = stat.month.split('-');
+                    displayName = monthNames[parseInt(parts[1]) - 1] + '/' + parts[0];
+                }
+                return `
+                    <tr>
+                        <td class="table-date">${displayName}</td>
+                        <td class="table-value">${parseFloat(stat.generated).toFixed(2)}</td>
+                        <td class="table-value">${parseFloat(stat.consumed).toFixed(2)}</td>
+                        <td class="table-value">${parseFloat(stat.sold).toFixed(2)}</td>
+                        <td class="table-value">${Math.round(stat.avg_solar)}</td>
+                        <td class="table-value">${Math.round(stat.avg_consumption)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // Initialize
+        updateLiveData();
+        setInterval(updateLiveData, 3000);
     </script>
 </body>
 </html>
