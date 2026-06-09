@@ -47,7 +47,8 @@ def fetch_shelly_solar():
 
 def fetch_shelly_house():
     """
-    Busca a potência total da casa (soma de todos os circuitos)
+    Busca a potência de troca com a rede elétrica (importação/exportação)
+    se valor e negativo = exportando para a rede, se positivo = importando da rede
     Retorna o valor em Watts, ou 0.0 se falhar
     """
     try:

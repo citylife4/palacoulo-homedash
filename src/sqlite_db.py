@@ -6,6 +6,7 @@ matching what the application needs.
 import os
 import sqlite3
 import logging
+from datetime import datetime
 from typing import Dict, List
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,12 @@ class SQLiteDB:
                 cursor.execute(
                     """
                     SELECT * FROM (
-                        SELECT * FROM telemetry ORDER BY id DESC LIMIT ?
+                        SELECT
+                            id, timestamp, temperature, humidity, wind_speed, wind_dir, barometer,
+                            rain_rate, solar_rad, uv, ac_solar_w,
+                            house_power_w,
+                            net_balance
+                        FROM telemetry ORDER BY id DESC LIMIT ?
                     ) ORDER BY id ASC
                     """,
                     (limit,)
@@ -100,14 +106,16 @@ class SQLiteDB:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
+                interval_seconds = self._estimate_sample_interval_seconds(limit=40)
+                energy_factor = interval_seconds / 3600000.0
                 cursor.execute("""
                     SELECT 
                         'Periodo ' || ((id - 1) / 100 + 1) as date,
-                        ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
-                        ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
-                        ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
+                        ROUND(SUM(ac_solar_w) * ?, 2) as generated_kwh,
+                        ROUND(SUM(house_power_w) * ?, 2) as house_power_kwh,
+                        ROUND(SUM(CASE WHEN net_balance < 0 THEN -net_balance ELSE 0 END) * ?, 2) as sold_excess_kwh,
                         ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
-                        ROUND(AVG(house_power_w), 1) as avg_consumption_w
+                        ROUND(AVG(house_power_w), 1) as avg_house_power_w
                     FROM (
                         SELECT * FROM telemetry 
                         WHERE id > (SELECT IFNULL(MAX(id),0) - 1000 FROM telemetry)
@@ -116,7 +124,7 @@ class SQLiteDB:
                     GROUP BY ((id - 1) / 100)
                     ORDER BY ((id - 1) / 100) DESC
                     LIMIT 30
-                """)
+                """, (energy_factor, energy_factor, energy_factor))
                 rows = cursor.fetchall()
                 return rows
         except Exception as e:
@@ -127,16 +135,18 @@ class SQLiteDB:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
+                interval_seconds = self._estimate_sample_interval_seconds(limit=40)
+                energy_factor = interval_seconds / 3600000.0
                 cursor.execute("""
                     SELECT 
                         'Atual' as month,
-                        ROUND(SUM(ac_solar_w) / 1000.0, 2) as generated_kwh,
-                        ROUND(SUM(house_power_w) / 1000.0, 2) as consumed_kwh,
-                        ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 1000.0, 2) as sold_excess_kwh,
+                        ROUND(SUM(ac_solar_w) * ?, 2) as generated_kwh,
+                        ROUND(SUM(house_power_w) * ?, 2) as house_power_kwh,
+                        ROUND(SUM(CASE WHEN net_balance < 0 THEN -net_balance ELSE 0 END) * ?, 2) as sold_excess_kwh,
                         ROUND(AVG(ac_solar_w), 1) as avg_solar_w,
-                        ROUND(AVG(house_power_w), 1) as avg_consumption_w
+                        ROUND(AVG(house_power_w), 1) as avg_house_power_w
                     FROM telemetry
-                """)
+                """, (energy_factor, energy_factor, energy_factor))
                 rows = cursor.fetchall()
                 return rows
         except Exception as e:
@@ -147,49 +157,85 @@ class SQLiteDB:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                # Get last timestamp safely
-                cursor.execute("SELECT timestamp FROM telemetry ORDER BY id DESC LIMIT 1")
-                last = cursor.fetchone()
+                interval_seconds = self._estimate_sample_interval_seconds(limit=40)
+                energy_factor = interval_seconds / 3600000.0
 
                 hoje_inicio = datetime_now_str('%Y-%m-%d 00:00:00')
                 hoje_fim = datetime_now_str('%Y-%m-%d 23:59:59')
 
                 cursor.execute("""
                     SELECT 
-                        ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_today,
-                        ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_today,
-                        ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_today
+                        ROUND(SUM(ac_solar_w) * ?, 2) as generated_kwh_today,
+                        ROUND(SUM(house_power_w) * ?, 2) as house_power_kwh_today,
+                        ROUND(SUM(CASE WHEN net_balance < 0 THEN -net_balance ELSE 0 END) * ?, 2) as sold_kwh_today
                     FROM telemetry
                     WHERE timestamp >= ? AND timestamp <= ?
-                """, (hoje_inicio, hoje_fim))
+                """, (energy_factor, energy_factor, energy_factor, hoje_inicio, hoje_fim))
                 day_row = cursor.fetchone()
 
                 mes_inicio = datetime_now_str('%Y-%m-01 00:00:00')
                 proximo_mes = next_month_start_str()
                 cursor.execute("""
                     SELECT 
-                        ROUND(SUM(ac_solar_w) / 360000.0, 2) as generated_kwh_month,
-                        ROUND(SUM(house_power_w) / 360000.0, 2) as consumed_kwh_month,
-                        ROUND(SUM(CASE WHEN net_balance > 0 THEN net_balance ELSE 0 END) / 360000.0, 2) as sold_kwh_month
+                        ROUND(SUM(ac_solar_w) * ?, 2) as generated_kwh_month,
+                        ROUND(SUM(house_power_w) * ?, 2) as house_power_kwh_month,
+                        ROUND(SUM(CASE WHEN net_balance < 0 THEN -net_balance ELSE 0 END) * ?, 2) as sold_kwh_month
                     FROM telemetry
                     WHERE timestamp >= ? AND timestamp < ?
-                """, (mes_inicio, proximo_mes))
+                """, (energy_factor, energy_factor, energy_factor, mes_inicio, proximo_mes))
                 month_row = cursor.fetchone()
                 return {
                     'today': {
                         'generated': day_row[0] or 0,
-                        'consumed': day_row[1] or 0,
+                        'house_power': day_row[1] or 0,
                         'sold': day_row[2] or 0
                     },
                     'month': {
                         'generated': month_row[0] or 0,
-                        'consumed': month_row[1] or 0,
+                        'house_power': month_row[1] or 0,
                         'sold': month_row[2] or 0
                     }
                 }
         except Exception as e:
             logger.error(f"SQLite fetch_summary failed: {e}")
-            return {'today': {'generated': 0, 'consumed': 0, 'sold': 0}, 'month': {'generated': 0, 'consumed': 0, 'sold': 0}}
+            return {'today': {'generated': 0, 'house_power': 0, 'sold': 0}, 'month': {'generated': 0, 'house_power': 0, 'sold': 0}}
+
+    def _estimate_sample_interval_seconds(self, limit: int = 40) -> float:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT timestamp FROM telemetry WHERE timestamp IS NOT NULL ORDER BY id DESC LIMIT ?",
+                    (limit,)
+                )
+                rows = cursor.fetchall()
+
+            timestamps = []
+            for row in reversed(rows):
+                value = row[0] if isinstance(row, tuple) else row[0]
+                if not value:
+                    continue
+                try:
+                    timestamps.append(datetime.fromisoformat(str(value).replace('T', ' ')))
+                except ValueError:
+                    continue
+
+            if len(timestamps) < 2:
+                return 10.0
+
+            diffs = [
+                (timestamps[index] - timestamps[index - 1]).total_seconds()
+                for index in range(1, len(timestamps))
+                if (timestamps[index] - timestamps[index - 1]).total_seconds() > 0
+            ]
+            if not diffs:
+                return 10.0
+
+            average = sum(diffs) / len(diffs)
+            return max(1.0, min(average, 3600.0))
+        except Exception as e:
+            logger.debug(f"SQLite interval estimation failed: {e}")
+            return 10.0
 
 
 def datetime_now_str(fmt='%Y-%m-%d %H:%M:%S'):

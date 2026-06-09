@@ -37,6 +37,44 @@
     </header>
 
     <main class="max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 flex-grow space-y-8">
+
+        <section>
+            <h2 class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                <span>📈</span> Resumo da Energia
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Hoje Gerado</p>
+                    <p id="summary-today-generated" class="text-2xl font-bold font-mono text-emerald-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Hoje Casa</p>
+                    <p id="summary-today-house" class="text-2xl font-bold font-mono text-rose-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Hoje Vendido</p>
+                    <p id="summary-today-sold" class="text-2xl font-bold font-mono text-cyan-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Mês Gerado</p>
+                    <p id="summary-month-generated" class="text-2xl font-bold font-mono text-emerald-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Mês Casa</p>
+                    <p id="summary-month-house" class="text-2xl font-bold font-mono text-rose-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+                <div class="glass-card rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase">Mês Vendido</p>
+                    <p id="summary-month-sold" class="text-2xl font-bold font-mono text-cyan-400 mt-2">0.00</p>
+                    <p class="text-xs text-slate-500">energia</p>
+                </div>
+            </div>
+        </section>
         
         <section>
             <h2 class="text-xs uppercase font-bold tracking-widest text-slate-400 mb-4 flex items-center gap-2">
@@ -54,7 +92,7 @@
 
                 <div class="glass-card rounded-2xl p-6 glow-red relative overflow-hidden">
                     <div class="absolute top-0 left-0 h-1 w-full bg-rose-500"></div>
-                    <p class="text-sm font-medium text-slate-400 uppercase">Consumo Geral</p>
+                    <p class="text-sm font-medium text-slate-400 uppercase">Consumo da Casa</p>
                     <div class="mt-4 flex items-baseline justify-between">
                         <span id="txt-house" class="text-4xl font-extrabold text-rose-400 font-mono">0.0</span>
                         <span id="unit-house" class="text-lg font-medium text-rose-500/80">W</span>
@@ -63,7 +101,7 @@
 
                 <div id="card-balance" class="glass-card rounded-2xl p-6 relative overflow-hidden">
                     <div id="border-balance" class="absolute top-0 left-0 h-1 w-full bg-slate-500"></div>
-                    <p class="text-sm font-medium text-slate-400 uppercase">Balanço Líquido</p>
+                    <p class="text-sm font-medium text-slate-400 uppercase">Balanço da Rede</p>
                     <div class="mt-4 flex items-baseline justify-between">
                         <span id="txt-balance" class="text-4xl font-extrabold font-mono text-slate-300">0.0</span>
                         <span id="unit-balance" class="text-lg font-medium text-slate-400">W</span>
@@ -117,6 +155,40 @@
                 <div class="h-64"><canvas id="chart-energy"></canvas></div>
             </div>
         </section>
+
+        <section>
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h2 class="text-xs uppercase font-bold tracking-widest text-slate-400 flex items-center gap-2">
+                    <span>🗂️</span> Estatísticas
+                </h2>
+                <div class="flex items-center gap-3">
+                    <label for="stats-period" class="text-xs text-slate-400 uppercase tracking-widest">Período</label>
+                    <select id="stats-period" class="bg-slate-900/80 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2">
+                        <option value="daily" selected>Diário</option>
+                        <option value="monthly">Mensal</option>
+                    </select>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-5 overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="text-slate-400 uppercase tracking-widest text-xs border-b border-slate-800">
+                        <tr>
+                            <th class="py-3 pr-4" id="stats-label-header">Dia</th>
+                            <th class="py-3 pr-4">Gerado</th>
+                            <th class="py-3 pr-4">Casa</th>
+                            <th class="py-3 pr-4">Vendido</th>
+                            <th class="py-3 pr-4">Média Solar (W)</th>
+                            <th class="py-3 pr-4">Média Casa (W)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-table-body" class="divide-y divide-slate-800">
+                        <tr>
+                            <td colspan="6" class="py-6 text-slate-500">A carregar estatísticas...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <script>
@@ -138,7 +210,7 @@
                     datasets: [
                         { label: 'Radiação (W/m²)', data: [], borderColor: '#eab308', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
                         { label: 'Produção Solar (W)', data: [], borderColor: '#10b981', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
-                        { label: 'Consumo Casa (W)', data: [], borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false }
+                        { label: 'Fluxo da Rede (W)', data: [], borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.01)' }, ticks: { color: '#64748b', font: { size: 10 } } } } }
@@ -151,6 +223,83 @@
                 return { value: (value / 1000).toFixed(2), unit: 'kW' };
             }
             return { value: value.toFixed(1), unit: 'W' };
+        }
+
+        function formatEnergy(value) {
+            const numericValue = Number(value || 0);
+            const absValue = Math.abs(numericValue);
+            if (absValue < 1) {
+                return { value: (numericValue * 1000).toFixed(0), unit: 'Wh' };
+            }
+            return { value: numericValue.toFixed(2), unit: 'kWh' };
+        }
+
+        async function updateSummary() {
+            try {
+                const response = await fetch('/api/summary');
+                if (!response.ok) return;
+                const summary = await response.json();
+                if (summary.error) return;
+
+                const todayGenerated = formatEnergy(summary.today.generated);
+                const todayHouse = formatEnergy(summary.today.house_power);
+                const todaySold = formatEnergy(summary.today.sold);
+                const monthGenerated = formatEnergy(summary.month.generated);
+                const monthHouse = formatEnergy(summary.month.house_power);
+                const monthSold = formatEnergy(summary.month.sold);
+
+                document.getElementById('summary-today-generated').innerText = `${todayGenerated.value} ${todayGenerated.unit}`;
+                document.getElementById('summary-today-house').innerText = `${todayHouse.value} ${todayHouse.unit}`;
+                document.getElementById('summary-today-sold').innerText = `${todaySold.value} ${todaySold.unit}`;
+                document.getElementById('summary-month-generated').innerText = `${monthGenerated.value} ${monthGenerated.unit}`;
+                document.getElementById('summary-month-house').innerText = `${monthHouse.value} ${monthHouse.unit}`;
+                document.getElementById('summary-month-sold').innerText = `${monthSold.value} ${monthSold.unit}`;
+            } catch (error) {
+                console.error('Erro ao atualizar resumo:', error);
+            }
+        }
+
+        function renderStatisticsRows(period, rows) {
+            const tbody = document.getElementById('stats-table-body');
+            const header = document.getElementById('stats-label-header');
+            header.innerText = period === 'monthly' ? 'Mês' : 'Dia';
+
+            if (!rows || rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-slate-500">Sem estatísticas disponíveis.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map((row) => {
+                const label = row.day ?? row.date ?? row.month ?? row[0] ?? '';
+                const generated = formatEnergy(row.generated ?? row[1] ?? 0);
+                const consumed = formatEnergy(row.house_power ?? row.rede ?? row[2] ?? 0);
+                const sold = formatEnergy(row.sold ?? row[3] ?? 0);
+                const avgSolar = row.avg_solar ?? row.avg_solar_w ?? row[4] ?? 0;
+                const avgConsumption = row.avg_house_power ?? row.avg_house_power_w ?? row.avg_rede ?? row.avg_rede_w ?? row[5] ?? 0;
+
+                return `
+                <tr class="hover:bg-slate-900/40">
+                    <td class="py-3 pr-4 font-mono text-slate-200">${label}</td>
+                    <td class="py-3 pr-4 text-emerald-400 font-mono">${generated.value} ${generated.unit}</td>
+                    <td class="py-3 pr-4 text-rose-400 font-mono">${consumed.value} ${consumed.unit}</td>
+                    <td class="py-3 pr-4 text-cyan-400 font-mono">${sold.value} ${sold.unit}</td>
+                    <td class="py-3 pr-4 text-slate-200 font-mono">${Number(avgSolar || 0).toFixed(1)}</td>
+                    <td class="py-3 pr-4 text-slate-200 font-mono">${Number(avgConsumption || 0).toFixed(1)}</td>
+                </tr>
+            `;
+            }).join('');
+        }
+
+        async function updateStatistics(period = 'daily') {
+            try {
+                const response = await fetch(`/api/statistics?period=${encodeURIComponent(period)}`);
+                if (!response.ok) return;
+                const payload = await response.json();
+                if (payload.error) return;
+                renderStatisticsRows(period, payload.data || []);
+            } catch (error) {
+                console.error('Erro ao atualizar estatísticas:', error);
+            }
         }
 
         async function updateDashboard() {
@@ -187,15 +336,15 @@
                 unitBalance.innerText = balanceFormatted.unit;
 
                 if (latest.net_balance >= 0) {
-                    balanceElement.className = "text-4xl font-extrabold font-mono text-emerald-400";
-                    cardBalance.className = "glass-card rounded-2xl p-6 glow-green relative overflow-hidden";
-                    borderBalance.className = "absolute top-0 left-0 h-1 w-full bg-emerald-500";
-                    statusLabel.innerText = "Excedente / Autossuficiência";
-                } else {
                     balanceElement.className = "text-4xl font-extrabold font-mono text-orange-400";
                     cardBalance.className = "glass-card rounded-2xl p-6 glow-red relative overflow-hidden";
                     borderBalance.className = "absolute top-0 left-0 h-1 w-full bg-orange-500";
                     statusLabel.innerText = "A Importar da Rede Comercial";
+                } else {
+                    balanceElement.className = "text-4xl font-extrabold font-mono text-emerald-400";
+                    cardBalance.className = "glass-card rounded-2xl p-6 glow-green relative overflow-hidden";
+                    borderBalance.className = "absolute top-0 left-0 h-1 w-full bg-emerald-500";
+                    statusLabel.innerText = "Excedente / Exportação para a Rede";
                 }
 
                 document.getElementById('meta-temp').innerText = latest.temperature.toFixed(1);
@@ -227,7 +376,15 @@
         window.addEventListener('DOMContentLoaded', () => {
             initCharts();
             updateDashboard();
+            updateSummary();
+            updateStatistics(document.getElementById('stats-period').value);
             setInterval(updateDashboard, 3000);
+            setInterval(updateSummary, 60000);
+            setInterval(() => updateStatistics(document.getElementById('stats-period').value), 60000);
+
+            document.getElementById('stats-period').addEventListener('change', (event) => {
+                updateStatistics(event.target.value);
+            });
         });
     </script>
 </body>

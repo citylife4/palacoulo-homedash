@@ -3,6 +3,7 @@ Routes Module - Definição de rotas usando Flask Blueprints
 """
 import logging
 import datetime
+from typing import Any
 from flask import Blueprint, render_template, request, jsonify
 from src.shelly_service import fetch_shelly_solar, fetch_shelly_house
 from src.storage import get_storage
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 main_bp = Blueprint('main', __name__)
 
 # Selected storage backend (sqlite or oracle)
-storage = get_storage()
+storage: Any = get_storage()
 
 
 @main_bp.route('/', methods=['GET'])
@@ -57,7 +58,8 @@ def handle_weather_webhook():
         wind_dir = int(form.get('winddir', 0))
         
         # Integração paralela com os Shelly locais
-        ac_solar = fetch_shelly_solar()
+        solar = fetch_shelly_solar()
+        ac_solar = 0.0 if solar < 1.0 else solar
         net_balance = fetch_shelly_house()
         house_power = round(net_balance + ac_solar, 1)
         
@@ -74,7 +76,7 @@ def handle_weather_webhook():
             'uv': uv,
             'ac_solar_w': round(ac_solar, 1),
             'house_power_w': round(house_power, 1),
-            'net_balance': net_balance
+            'net_balance': round(net_balance, 1)
         }
 
         ok = storage.insert(record)
@@ -166,10 +168,10 @@ def get_statistics():
             stats.append({
                 "date" if period == 'daily' else "month": row[0],
                 "generated": row[1],
-                "consumed": row[2],
+                "house_power": row[2],
                 "sold": row[3],
                 "avg_solar": row[4],
-                "avg_consumption": row[5]
+                "avg_house_power": row[5]
             })
         
         return jsonify({
